@@ -1,0 +1,12 @@
+App(
+    appid="amitablet",
+    name="AmiTablet",
+    apptype=FlipperAppType.EXTERNAL,
+    entry_point="amitablet_app",
+    requires=["gui"],
+    stack_size=2 * 1024,
+    order=10,
+    fap_category="Bluetooth",
+    fap_description="Bluetooth HID remote for tablets",
+    fap_author="benumb",
+)
