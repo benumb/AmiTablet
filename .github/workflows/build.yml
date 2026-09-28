@@ -45,6 +45,16 @@ jobs:
       - name: Build AmiTablet
         run: ufbt
 
+      - name: Version FAP filename
+        shell: bash
+        run: |
+          FAP=$(find dist -maxdepth 1 -type f -name '*.fap' | head -n 1)
+          if [ -z "$FAP" ]; then
+            echo "No FAP found in dist/"
+            exit 1
+          fi
+          mv "$FAP" "dist/AmiTablet-v${AMITABLET_VERSION}.fap"
+
       - name: Upload FAP
         uses: actions/upload-artifact@v4
         with:
