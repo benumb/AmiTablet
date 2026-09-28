@@ -147,7 +147,7 @@ static void amitablet_consumer_release(AmiTabletApp* app, uint16_t key) {
 
 static void amitablet_handle_input(AmiTabletApp* app, const InputEvent* event) {
     if(event->key == InputKeyBack) {
-        if((event->type == InputTypeShort) || (event->type == InputTypeLong)) {
+        if(event->type == InputTypeLong) {
             app->running = false;
         }
         return;
@@ -204,6 +204,7 @@ int32_t amitablet_app(void* p) {
     app->running = true;
     app->input_queue = furi_message_queue_alloc(8, sizeof(InputEvent));
     app->view_port = view_port_alloc();
+    view_port_set_orientation(app->view_port, ViewPortOrientationVertical);
 
     view_port_draw_callback_set(app->view_port, amitablet_draw_callback, app);
     view_port_input_callback_set(app->view_port, amitablet_input_callback, app);
