@@ -7,7 +7,7 @@ App(
     fap_icon="assets/amitablet_10px.png",
     fap_icon_assets="assets",
     fap_category="Bluetooth",
-    fap_version=(0, 5),
+    fap_version=(0, 6),
     fap_description="Bluetooth HID tablet remote with scrolling, right-click and navigation",
     fap_author="benumb",
     fap_libs=["ble_profile"],
