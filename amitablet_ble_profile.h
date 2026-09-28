@@ -2,6 +2,7 @@
 
 #include <furi.h>
 #include <furi_hal.h>
+#include <furi_hal_version.h>
 #include <extra_profiles/hid_profile.h>
 
 typedef struct {
