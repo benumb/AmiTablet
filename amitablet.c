@@ -23,62 +23,136 @@ typedef struct {
     bool running;
 } AmiTabletApp;
 
-static void amitablet_draw_arrow_up(Canvas* canvas, int32_t cx, int32_t cy) {
-    canvas_draw_line(canvas, cx, cy - 4, cx - 5, cy + 3);
-    canvas_draw_line(canvas, cx, cy - 4, cx + 5, cy + 3);
-    canvas_draw_line(canvas, cx - 5, cy + 3, cx + 5, cy + 3);
+#define AMITABLET_VERSION_LABEL "v0.8"
+
+/* ------------------------------------------------------------------ */
+/* V0.8 portrait UI (64x128 with ViewPortOrientationVerticalFlip).     */
+/* All coordinates below are in portrait space. Layout:                */
+/*   y  0..28  header icon (48x28, centered)                           */
+/*   y 38      title "AmiTablet" (FontPrimary, centered)               */
+/*   y 46      version label (FontSecondary, centered, discreet)       */
+/*   y 48..60  BLE status badge (framed)                              */
+/*   y 61..106 5 control rows, 9px each                               */
+/*   y 108     separator line                                         */
+/*   y110..127 footer frame with exit hint                            */
+/* ------------------------------------------------------------------ */
+
+static void amitablet_draw_centered(Canvas* canvas, int32_t cx, int32_t y, const char* str) {
+    uint16_t w = canvas_string_width(canvas, str);
+    canvas_draw_str(canvas, cx - (int32_t)w / 2, y, str);
 }
 
-static void amitablet_draw_arrow_down(Canvas* canvas, int32_t cx, int32_t cy) {
-    canvas_draw_line(canvas, cx, cy + 4, cx - 5, cy - 3);
-    canvas_draw_line(canvas, cx, cy + 4, cx + 5, cy - 3);
-    canvas_draw_line(canvas, cx - 5, cy - 3, cx + 5, cy - 3);
+/* Pictograms below draw inside a 9x7 cell at (bx, by). */
+
+static void amitablet_draw_picto_up(Canvas* canvas, int32_t bx, int32_t by) {
+    int32_t cx = bx + 4;
+    canvas_draw_line(canvas, cx, by + 1, cx - 2, by + 4);
+    canvas_draw_line(canvas, cx, by + 1, cx + 2, by + 4);
+    canvas_draw_line(canvas, cx - 2, by + 4, cx + 2, by + 4);
 }
 
-static void amitablet_draw_arrow_left(Canvas* canvas, int32_t cx, int32_t cy) {
-    canvas_draw_line(canvas, cx - 4, cy, cx + 3, cy - 5);
-    canvas_draw_line(canvas, cx - 4, cy, cx + 3, cy + 5);
-    canvas_draw_line(canvas, cx + 3, cy - 5, cx + 3, cy + 5);
+static void amitablet_draw_picto_down(Canvas* canvas, int32_t bx, int32_t by) {
+    int32_t cx = bx + 4;
+    canvas_draw_line(canvas, cx, by + 5, cx - 2, by + 2);
+    canvas_draw_line(canvas, cx, by + 5, cx + 2, by + 2);
+    canvas_draw_line(canvas, cx - 2, by + 2, cx + 2, by + 2);
 }
 
-static void amitablet_draw_arrow_right(Canvas* canvas, int32_t cx, int32_t cy) {
-    canvas_draw_line(canvas, cx + 4, cy, cx - 3, cy - 5);
-    canvas_draw_line(canvas, cx + 4, cy, cx - 3, cy + 5);
-    canvas_draw_line(canvas, cx - 3, cy - 5, cx - 3, cy + 5);
+static void amitablet_draw_picto_left(Canvas* canvas, int32_t bx, int32_t by) {
+    int32_t cy = by + 3;
+    canvas_draw_line(canvas, bx + 1, cy, bx + 4, cy - 2);
+    canvas_draw_line(canvas, bx + 1, cy, bx + 4, cy + 2);
+    canvas_draw_line(canvas, bx + 4, cy - 2, bx + 4, cy + 2);
 }
+
+static void amitablet_draw_picto_right(Canvas* canvas, int32_t bx, int32_t by) {
+    int32_t cy = by + 3;
+    canvas_draw_line(canvas, bx + 7, cy, bx + 4, cy - 2);
+    canvas_draw_line(canvas, bx + 7, cy, bx + 4, cy + 2);
+    canvas_draw_line(canvas, bx + 4, cy - 2, bx + 4, cy + 2);
+}
+
+static void amitablet_draw_picto_ok(Canvas* canvas, int32_t bx, int32_t by) {
+    canvas_draw_circle(canvas, bx + 4, by + 3, 2);
+    canvas_draw_dot(canvas, bx + 4, by + 3);
+}
+
+/* Mini Bluetooth rune, 5x7 at (x, y). */
+static void amitablet_draw_bt(Canvas* canvas, int32_t x, int32_t y) {
+    canvas_draw_line(canvas, x + 2, y, x + 2, y + 6);
+    canvas_draw_line(canvas, x + 2, y, x + 4, y + 2);
+    canvas_draw_line(canvas, x + 4, y + 2, x + 2, y + 3);
+    canvas_draw_line(canvas, x + 2, y + 3, x + 4, y + 4);
+    canvas_draw_line(canvas, x + 4, y + 4, x + 2, y + 6);
+}
+
+/* Confirmation tick, 6x5 at (x, y). */
+static void amitablet_draw_check(Canvas* canvas, int32_t x, int32_t y) {
+    canvas_draw_line(canvas, x, y + 3, x + 2, y + 5);
+    canvas_draw_line(canvas, x + 2, y + 5, x + 5, y + 1);
+}
+
+typedef void (*AmiTabletPictoFn)(Canvas* canvas, int32_t bx, int32_t by);
 
 static void amitablet_draw_callback(Canvas* canvas, void* context) {
     AmiTabletApp* app = context;
 
     canvas_clear(canvas);
 
-    /* Hero pictogram */
+    /* Header: tablet-and-stylus icon, title, discreet version. */
     canvas_draw_icon(canvas, 8, 0, &I_amitablet_logo);
 
-    /* Brand */
     canvas_set_font(canvas, FontPrimary);
-    canvas_draw_str(canvas, 5, 36, "AmiTablet");
-    canvas_set_font(canvas, FontSecondary);
-    canvas_draw_str(canvas, 44, 36, "v0.7");
+    amitablet_draw_centered(canvas, 32, 38, "AmiTablet");
 
-    /* Bluetooth status badge */
-    canvas_draw_frame(canvas, 9, 40, 46, 11);
     canvas_set_font(canvas, FontSecondary);
-    canvas_draw_str(canvas, app->connected ? 17 : 15, 48, app->connected ? "BT LINKED" : "BT WAIT");
+    amitablet_draw_centered(canvas, 32, 46, AMITABLET_VERSION_LABEL);
 
-    /* Graphic D-pad */
-    canvas_draw_circle(canvas, 32, 78, 24);
-    canvas_draw_circle(canvas, 32, 78, 7);
-    amitablet_draw_arrow_up(canvas, 32, 61);
-    amitablet_draw_arrow_down(canvas, 32, 95);
-    amitablet_draw_arrow_left(canvas, 15, 78);
-    amitablet_draw_arrow_right(canvas, 49, 78);
+    /* BLE status badge: framed capsule with BT symbol, tick when linked. */
+    const char* ble_text = app->connected ? "BLE: OK" : "BLE: WAIT";
+    uint16_t ble_w = canvas_string_width(canvas, ble_text);
+    /* Group: [bt 5px][gap 2][text][gap 2 + check 6px when connected]. */
+    int32_t group_w = 7 + (int32_t)ble_w + (app->connected ? 8 : 0);
+    canvas_draw_rframe(canvas, 3, 48, 58, 12, 3);
+    if(group_w <= 54) {
+        int32_t gx = 3 + (58 - group_w) / 2;
+        amitablet_draw_bt(canvas, gx, 50);
+        canvas_draw_str(canvas, gx + 7, 57, ble_text);
+        if(app->connected) {
+            amitablet_draw_check(canvas, gx + 7 + (int32_t)ble_w + 2, 50);
+        }
+    } else {
+        /* Fallback: centered text only, guaranteed to fit. */
+        amitablet_draw_centered(canvas, 32, 57, ble_text);
+    }
 
-    /* Compact legend */
-    canvas_set_font(canvas, FontSecondary);
-    canvas_draw_str(canvas, 4, 108, "UP/DN  SCROLL");
-    canvas_draw_str(canvas, 4, 117, "L/R    NAV");
-    canvas_draw_str(canvas, 4, 126, "OK=RCLICK  HOLD=EXIT");
+    /* Main controls list: 5 rows, pictogram left + label right. */
+    static const AmiTabletPictoFn pictos[5] = {
+        amitablet_draw_picto_up,
+        amitablet_draw_picto_down,
+        amitablet_draw_picto_left,
+        amitablet_draw_picto_right,
+        amitablet_draw_picto_ok,
+    };
+    static const char* const labels[5] = {
+        "Scroll",
+        "Scroll",
+        "Back",
+        "Forward",
+        "Right-click",
+    };
+    for(int i = 0; i < 5; i++) {
+        int32_t ry = 61 + i * 9;
+        canvas_draw_rframe(canvas, 2, ry + 1, 9, 7, 1);
+        pictos[i](canvas, 2, ry + 1);
+        canvas_draw_str(canvas, 13, ry + 8, labels[i]);
+    }
+
+    /* Footer: separator + framed exit hint (two lines to fit 64px). */
+    canvas_draw_line(canvas, 6, 108, 58, 108);
+    canvas_draw_rframe(canvas, 4, 110, 56, 17, 2);
+    amitablet_draw_centered(canvas, 32, 117, "Hold BACK");
+    amitablet_draw_centered(canvas, 32, 125, "to exit");
 }
 
 static void amitablet_input_callback(InputEvent* input_event, void* context) {

@@ -4,14 +4,14 @@ AmiTablet is a Bluetooth HID remote for Flipper Zero, designed for tablets and d
 
 It provides quick access to mouse and navigation controls that are awkward or missing on some devices.
 
-## V0.2 controls
+## V0.8 controls
 
 - **Up** — Scroll up
 - **Down** — Scroll down
 - **Left** — Back
 - **Right** — Forward
 - **OK** — Right click
-- **BACK** — Exit AmiTablet
+- **BACK (long press)** — Exit AmiTablet
 
 Holding **Up** or **Down** repeats the mouse-wheel action.
 
@@ -22,9 +22,21 @@ Holding **Up** or **Down** repeats the mouse-wheel action.
 - Windows / Android
 - Bluetooth HID
 
+## V0.8 screen
+
+Portrait UI (`ViewPortOrientationVerticalFlip`, 64x128):
+
+1. Header: tablet-and-stylus icon, `AmiTablet` title, discreet `v0.8` label.
+2. BLE badge: `BLE: WAIT` (waiting) / `BLE: OK` (connected), with a
+   Bluetooth mark and a confirmation tick when connected.
+3. Controls list (pictogram + label per row):
+   Up/Down = Scroll, Left = Back, Right = Forward, OK = Right-click.
+4. Footer: `Hold BACK` / `to exit` (long press exits).
+
 ## Bluetooth
 
-V0.2 gives AmiTablet its own Bluetooth identity:
+V0.2 gave AmiTablet its own Bluetooth identity
+(kept unchanged since, including in V0.8):
 
 - advertised name: **AmiTablet**
 - stable BLE address derived from the Flipper address
@@ -41,9 +53,9 @@ Before testing V0.2, remove any old broken AmiTablet/unknown HID pairing from Wi
 
 ## Current status
 
-**V0.2 pairing fix**
+**V0.8 UI redesign**
 
-Implemented:
+Kept intact from previous versions:
 
 - dedicated BLE HID identity
 - dedicated bonding storage
