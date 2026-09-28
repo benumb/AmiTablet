@@ -5,7 +5,7 @@ App(
     entry_point="amitablet_app",
     stack_size=4 * 1024,
     fap_category="Bluetooth",
-    fap_version=(0, 1),
+    fap_version=(0, 2),
     fap_description="Bluetooth HID tablet remote with scrolling, right-click and navigation",
     fap_author="benumb",
     fap_libs=["ble_profile"],
