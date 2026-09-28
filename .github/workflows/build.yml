@@ -26,12 +26,28 @@ jobs:
       - name: Initialize Flipper SDK
         run: ufbt update --index-url=https://update.flipperzero.one/firmware/directory.json --channel=release
 
+      - name: Read AmiTablet version
+        shell: bash
+        run: |
+          VERSION=$(python - <<'PY'
+          import re
+          from pathlib import Path
+
+          text = Path("application.fam").read_text(encoding="utf-8")
+          match = re.search(r"fap_version=\((\d+)\s*,\s*(\d+)\)", text)
+          if not match:
+              raise SystemExit("Unable to read fap_version from application.fam")
+          print(f"{match.group(1)}.{match.group(2)}")
+          PY
+          )
+          echo "AMITABLET_VERSION=$VERSION" >> "$GITHUB_ENV"
+
       - name: Build AmiTablet
         run: ufbt
 
       - name: Upload FAP
         uses: actions/upload-artifact@v4
         with:
-          name: AmiTablet-fap
+          name: AmiTablet-v${{ env.AMITABLET_VERSION }}-fap
           path: dist/*.fap
           if-no-files-found: error
