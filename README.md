@@ -1,10 +1,10 @@
 # AmiTablet
 
-AmiTablet is a Bluetooth HID remote for Flipper Zero, designed for tablets.
+AmiTablet is a Bluetooth HID remote for Flipper Zero, designed for tablets and desktop systems.
 
-It provides quick access to mouse and navigation controls that are awkward or missing on many tablets.
+It provides quick access to mouse and navigation controls that are awkward or missing on some devices.
 
-## V0.1 controls
+## V0.2 controls
 
 - **Up** — Scroll up
 - **Down** — Scroll down
@@ -19,41 +19,41 @@ Holding **Up** or **Down** repeats the mouse-wheel action.
 
 - Flipper Zero
 - Momentum firmware
-- Android tablets first
+- Windows / Android
 - Bluetooth HID
 
 ## Bluetooth
 
-AmiTablet starts its own BLE HID profile and advertises while the app is open.
+V0.2 gives AmiTablet its own Bluetooth identity:
 
-On first use, pair the Flipper with the tablet while AmiTablet is running. Pairing information is stored in AmiTablet's app data so later launches can reconnect.
+- advertised name: **AmiTablet**
+- stable BLE address derived from the Flipper address
+- dedicated pairing/bond storage
+
+This avoids mixing AmiTablet pairing keys with the normal Flipper Bluetooth identity.
 
 The status line shows:
 
-- `BLE: WAIT` — waiting for the tablet
+- `BLE: WAIT` — waiting for a host
 - `BLE: OK` — connected
+
+Before testing V0.2, remove any old broken AmiTablet/unknown HID pairing from Windows and pair again with the new **AmiTablet** device.
 
 ## Current status
 
-**V0.1 implementation**
+**V0.2 pairing fix**
 
 Implemented:
 
-- Bluetooth HID startup
+- dedicated BLE HID identity
+- dedicated bonding storage
+- explicit bonding/pairing configuration
 - BLE connection status
-- Mouse-wheel scrolling
-- Right mouse button
+- mouse-wheel scrolling
+- right mouse button
 - HID Consumer Back / Forward navigation
-- Clean BLE profile restoration when the app exits
+- clean BLE profile restoration when the app exits
 
 ## Notes
 
-Back and Forward use standard HID Consumer Control commands. Their exact behavior can depend on the Android version and the application currently in the foreground.
-
-## Roadmap
-
-- Test V0.1 on a real tablet
-- Tune scroll direction/speed if needed
-- Add an optional mouse mode
-- Add left-click support in mouse mode
-- Optional media controls
+Back and Forward use standard HID Consumer Control commands. Their exact behavior depends on the host OS and the foreground application.
