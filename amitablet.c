@@ -21,9 +21,11 @@ typedef struct {
     FuriHalBleProfileBase* ble_profile;
     bool connected;
     bool running;
+    uint32_t bt_event_count;
+    const char* last_input;
 } AmiTabletApp;
 
-#define AMITABLET_VERSION_LABEL "v0.8"
+#define AMITABLET_VERSION_LABEL "v0.9"
 
 /* ------------------------------------------------------------------ */
 /* V0.8 portrait UI (64x128 with ViewPortOrientationVerticalFlip).     */
@@ -153,6 +155,9 @@ static void amitablet_draw_callback(Canvas* canvas, void* context) {
     canvas_draw_rframe(canvas, 4, 110, 56, 17, 2);
     amitablet_draw_centered(canvas, 32, 117, "Hold BACK");
     amitablet_draw_centered(canvas, 32, 125, "to exit");
+
+    /* V0.9 diagnostic state is intentionally not drawn over the final UI.
+       It is logged to the console to preserve the V0.8 design. */
 }
 
 static void amitablet_input_callback(InputEvent* input_event, void* context) {
@@ -163,6 +168,13 @@ static void amitablet_input_callback(InputEvent* input_event, void* context) {
 static void amitablet_bt_status_callback(BtStatus status, void* context) {
     AmiTabletApp* app = context;
     app->connected = (status == BtStatusConnected);
+    app->bt_event_count++;
+    FURI_LOG_I(
+        "AmiTablet",
+        "BT event #%lu: status=%d connected=%d",
+        (unsigned long)app->bt_event_count,
+        (int)status,
+        app->connected ? 1 : 0);
 
     if(app->view_port) {
         view_port_update(app->view_port);
@@ -259,7 +271,39 @@ static void amitablet_consumer_release(AmiTabletApp* app, uint16_t key) {
     }
 }
 
+static const char* amitablet_input_key_name(InputKey key) {
+    switch(key) {
+    case InputKeyUp:
+        return "UP";
+    case InputKeyDown:
+        return "DOWN";
+    case InputKeyLeft:
+        return "LEFT";
+    case InputKeyRight:
+        return "RIGHT";
+    case InputKeyOk:
+        return "OK";
+    case InputKeyBack:
+        return "BACK";
+    default:
+        return "OTHER";
+    }
+}
+
+static void amitablet_log_input(AmiTabletApp* app, const InputEvent* event) {
+    app->last_input = amitablet_input_key_name(event->key);
+    FURI_LOG_I(
+        "AmiTablet",
+        "INPUT key=%s(%d) type=%d connected=%d",
+        app->last_input,
+        (int)event->key,
+        (int)event->type,
+        app->connected ? 1 : 0);
+}
+
 static void amitablet_handle_input(AmiTabletApp* app, const InputEvent* event) {
+    amitablet_log_input(app, event);
+
     if(event->key == InputKeyBack) {
         if(event->type == InputTypeLong) {
             app->running = false;
@@ -316,6 +360,8 @@ int32_t amitablet_app(void* p) {
     memset(app, 0, sizeof(AmiTabletApp));
 
     app->running = true;
+    app->bt_event_count = 0;
+    app->last_input = "NONE";
     app->input_queue = furi_message_queue_alloc(8, sizeof(InputEvent));
     app->view_port = view_port_alloc();
     view_port_set_orientation(app->view_port, ViewPortOrientationVerticalFlip);
