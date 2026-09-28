@@ -33,7 +33,9 @@ static void amitablet_draw_callback(Canvas* canvas, void* context) {
     canvas_draw_icon(canvas, 8, 1, &I_amitablet_logo);
 
     canvas_set_font(canvas, FontPrimary);
-    canvas_draw_str(canvas, 4, 38, "AmiTablet V0.6");
+    canvas_draw_str(canvas, 4, 38, "AmiTablet");
+    canvas_set_font(canvas, FontSecondary);
+    canvas_draw_str(canvas, 43, 38, "v0.6");
 
     canvas_set_font(canvas, FontSecondary);
     canvas_draw_str(canvas, 4, 50, app->connected ? "BLE: OK" : "BLE: WAIT");
