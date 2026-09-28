@@ -2,11 +2,12 @@
 
 #include <furi.h>
 #include <furi_hal.h>
-#include <furi_hal_version.h>
 #include <extra_profiles/hid_profile.h>
 
+#define AMITABLET_BLE_NAME_LENGTH 20
+
 typedef struct {
-    char name[FURI_HAL_BT_ADV_NAME_LENGTH];
+    char name[AMITABLET_BLE_NAME_LENGTH];
     uint8_t mac[GAP_MAC_ADDR_SIZE];
     bool bonding;
     GapPairing pairing;
