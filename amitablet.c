@@ -7,6 +7,8 @@
 #include <storage/storage.h>
 #include <extra_profiles/hid_profile.h>
 
+#include "amitablet_ble_profile.h"
+
 #define AMITABLET_BT_KEYS_FILE ".bt_hid.keys"
 #define AMITABLET_SCROLL_STEP 1
 
@@ -29,11 +31,7 @@ static void amitablet_draw_callback(Canvas* canvas, void* context) {
     canvas_draw_str(canvas, 2, 11, "AmiTablet");
 
     canvas_set_font(canvas, FontSecondary);
-    canvas_draw_str(
-        canvas,
-        76,
-        11,
-        app->connected ? "BLE: OK" : "BLE: WAIT");
+    canvas_draw_str(canvas, 76, 11, app->connected ? "BLE: OK" : "BLE: WAIT");
 
     canvas_draw_str(canvas, 2, 25, "UP    Scroll up");
     canvas_draw_str(canvas, 2, 34, "DOWN  Scroll down");
@@ -57,21 +55,37 @@ static void amitablet_bt_status_callback(BtStatus status, void* context) {
     }
 }
 
+static void amitablet_make_identity(AmiTabletBleProfileParams* params) {
+    memset(params, 0, sizeof(AmiTabletBleProfileParams));
+
+    strlcpy(params->name, "AmiTablet", sizeof(params->name));
+
+    const uint8_t* flipper_mac = furi_hal_version_get_ble_mac();
+    memcpy(params->mac, flipper_mac, sizeof(params->mac));
+
+    /* Stable, dedicated BLE identity for AmiTablet.
+       Keep it deterministic so Windows can reuse the bond on later launches. */
+    params->mac[0] ^= 0x02;
+    params->mac[2] ^= 0xA5;
+
+    params->bonding = true;
+    params->pairing = GapPairingPinCodeVerifyYesNo;
+}
+
 static void amitablet_ble_init(AmiTabletApp* app) {
     app->bt = furi_record_open(RECORD_BT);
 
+    furi_hal_bt_stop_advertising();
     bt_disconnect(app->bt);
     furi_delay_ms(200);
 
     bt_keys_storage_set_storage_path(app->bt, APP_DATA_PATH(AMITABLET_BT_KEYS_FILE));
 
-    BleProfileHidParams ble_params = {
-        .device_name_prefix = "AmiTab",
-        .mac_xor = 0,
-    };
+    AmiTabletBleProfileParams params;
+    amitablet_make_identity(&params);
 
     app->ble_profile =
-        bt_profile_start(app->bt, ble_profile_hid, (FuriHalBleProfileParams)&ble_params);
+        bt_profile_start(app->bt, amitablet_ble_profile, (FuriHalBleProfileParams)&params);
     furi_check(app->ble_profile);
 
     bt_set_status_changed_callback(app->bt, amitablet_bt_status_callback, app);
@@ -87,6 +101,7 @@ static void amitablet_ble_deinit(AmiTabletApp* app) {
     }
 
     bt_set_status_changed_callback(app->bt, NULL, NULL);
+    furi_hal_bt_stop_advertising();
     bt_disconnect(app->bt);
     furi_delay_ms(200);
 
@@ -101,31 +116,31 @@ static void amitablet_ble_deinit(AmiTabletApp* app) {
 }
 
 static void amitablet_scroll(AmiTabletApp* app, int8_t delta) {
-    if(app->ble_profile) {
+    if(app->ble_profile && app->connected) {
         ble_profile_hid_mouse_scroll(app->ble_profile, delta);
     }
 }
 
 static void amitablet_right_click_press(AmiTabletApp* app) {
-    if(app->ble_profile) {
+    if(app->ble_profile && app->connected) {
         ble_profile_hid_mouse_press(app->ble_profile, HID_MOUSE_BTN_RIGHT);
     }
 }
 
 static void amitablet_right_click_release(AmiTabletApp* app) {
-    if(app->ble_profile) {
+    if(app->ble_profile && app->connected) {
         ble_profile_hid_mouse_release(app->ble_profile, HID_MOUSE_BTN_RIGHT);
     }
 }
 
 static void amitablet_consumer_press(AmiTabletApp* app, uint16_t key) {
-    if(app->ble_profile) {
+    if(app->ble_profile && app->connected) {
         ble_profile_hid_consumer_key_press(app->ble_profile, key);
     }
 }
 
 static void amitablet_consumer_release(AmiTabletApp* app, uint16_t key) {
-    if(app->ble_profile) {
+    if(app->ble_profile && app->connected) {
         ble_profile_hid_consumer_key_release(app->ble_profile, key);
     }
 }
