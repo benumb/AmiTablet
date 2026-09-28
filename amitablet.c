@@ -22,23 +22,44 @@ typedef struct {
     bool running;
 } AmiTabletApp;
 
+static void amitablet_draw_logo(Canvas* canvas, int32_t x, int32_t y) {
+    /* Same pictogram as the app-list icon:
+       landscape tablet + diagonal stylus. */
+    canvas_draw_frame(canvas, x, y + 4, 46, 22);
+    canvas_draw_frame(canvas, x + 3, y + 7, 35, 16);
+    canvas_draw_line(canvas, x + 39, y + 6, x + 39, y + 23);
+    canvas_draw_circle(canvas, x + 42, y + 15, 1);
+
+    /* Stylus */
+    canvas_draw_line(canvas, x + 29, y + 21, x + 45, y + 2);
+    canvas_draw_line(canvas, x + 31, y + 22, x + 47, y + 4);
+    canvas_draw_line(canvas, x + 29, y + 21, x + 32, y + 19);
+
+    /* Small handwriting mark */
+    canvas_draw_line(canvas, x + 10, y + 18, x + 14, y + 14);
+    canvas_draw_line(canvas, x + 14, y + 14, x + 18, y + 17);
+    canvas_draw_line(canvas, x + 18, y + 17, x + 23, y + 15);
+}
+
 static void amitablet_draw_callback(Canvas* canvas, void* context) {
     AmiTabletApp* app = context;
 
     canvas_clear(canvas);
 
+    amitablet_draw_logo(canvas, 8, 1);
+
     canvas_set_font(canvas, FontPrimary);
-    canvas_draw_str(canvas, 2, 11, "AmiTablet");
+    canvas_draw_str(canvas, 4, 38, "AmiTablet");
 
     canvas_set_font(canvas, FontSecondary);
-    canvas_draw_str(canvas, 76, 11, app->connected ? "BLE: OK" : "BLE: WAIT");
-
-    canvas_draw_str(canvas, 2, 25, "UP    Scroll up");
-    canvas_draw_str(canvas, 2, 34, "DOWN  Scroll down");
-    canvas_draw_str(canvas, 2, 43, "LEFT  Back");
-    canvas_draw_str(canvas, 67, 43, "RIGHT Forward");
-    canvas_draw_str(canvas, 2, 53, "OK    Right click");
-    canvas_draw_str(canvas, 2, 63, "BACK  Exit");
+    canvas_draw_str(canvas, 4, 50, app->connected ? "BLE: OK" : "BLE: WAIT");
+    canvas_draw_str(canvas, 4, 62, "UP    Scroll");
+    canvas_draw_str(canvas, 4, 72, "DOWN  Scroll");
+    canvas_draw_str(canvas, 4, 82, "LEFT  Back");
+    canvas_draw_str(canvas, 4, 92, "RIGHT Fwd");
+    canvas_draw_str(canvas, 4, 102, "OK    R-click");
+    canvas_draw_str(canvas, 4, 118, "Hold BACK");
+    canvas_draw_str(canvas, 4, 127, "to exit");
 }
 
 static void amitablet_input_callback(InputEvent* input_event, void* context) {
