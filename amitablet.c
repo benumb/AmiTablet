@@ -23,29 +23,62 @@ typedef struct {
     bool running;
 } AmiTabletApp;
 
+static void amitablet_draw_arrow_up(Canvas* canvas, int32_t cx, int32_t cy) {
+    canvas_draw_line(canvas, cx, cy - 4, cx - 5, cy + 3);
+    canvas_draw_line(canvas, cx, cy - 4, cx + 5, cy + 3);
+    canvas_draw_line(canvas, cx - 5, cy + 3, cx + 5, cy + 3);
+}
+
+static void amitablet_draw_arrow_down(Canvas* canvas, int32_t cx, int32_t cy) {
+    canvas_draw_line(canvas, cx, cy + 4, cx - 5, cy - 3);
+    canvas_draw_line(canvas, cx, cy + 4, cx + 5, cy - 3);
+    canvas_draw_line(canvas, cx - 5, cy - 3, cx + 5, cy - 3);
+}
+
+static void amitablet_draw_arrow_left(Canvas* canvas, int32_t cx, int32_t cy) {
+    canvas_draw_line(canvas, cx - 4, cy, cx + 3, cy - 5);
+    canvas_draw_line(canvas, cx - 4, cy, cx + 3, cy + 5);
+    canvas_draw_line(canvas, cx + 3, cy - 5, cx + 3, cy + 5);
+}
+
+static void amitablet_draw_arrow_right(Canvas* canvas, int32_t cx, int32_t cy) {
+    canvas_draw_line(canvas, cx + 4, cy, cx - 3, cy - 5);
+    canvas_draw_line(canvas, cx + 4, cy, cx - 3, cy + 5);
+    canvas_draw_line(canvas, cx - 3, cy - 5, cx - 3, cy + 5);
+}
+
 static void amitablet_draw_callback(Canvas* canvas, void* context) {
     AmiTabletApp* app = context;
 
     canvas_clear(canvas);
 
-    /* Exact bitmap asset derived from the same AmiTablet pictogram
-       used for the app-list icon. */
-    canvas_draw_icon(canvas, 8, 1, &I_amitablet_logo);
+    /* Hero pictogram */
+    canvas_draw_icon(canvas, 8, 0, &I_amitablet_logo);
 
+    /* Brand */
     canvas_set_font(canvas, FontPrimary);
-    canvas_draw_str(canvas, 4, 38, "AmiTablet");
+    canvas_draw_str(canvas, 5, 36, "AmiTablet");
     canvas_set_font(canvas, FontSecondary);
-    canvas_draw_str(canvas, 43, 38, "v0.6");
+    canvas_draw_str(canvas, 44, 36, "v0.7");
 
+    /* Bluetooth status badge */
+    canvas_draw_frame(canvas, 9, 40, 46, 11);
     canvas_set_font(canvas, FontSecondary);
-    canvas_draw_str(canvas, 4, 50, app->connected ? "BLE: OK" : "BLE: WAIT");
-    canvas_draw_str(canvas, 4, 62, "UP    Scroll");
-    canvas_draw_str(canvas, 4, 72, "DOWN  Scroll");
-    canvas_draw_str(canvas, 4, 82, "LEFT  Back");
-    canvas_draw_str(canvas, 4, 92, "RIGHT Fwd");
-    canvas_draw_str(canvas, 4, 102, "OK    R-click");
-    canvas_draw_str(canvas, 4, 118, "Hold BACK");
-    canvas_draw_str(canvas, 4, 127, "to exit");
+    canvas_draw_str(canvas, app->connected ? 17 : 15, 48, app->connected ? "BT LINKED" : "BT WAIT");
+
+    /* Graphic D-pad */
+    canvas_draw_circle(canvas, 32, 78, 24);
+    canvas_draw_circle(canvas, 32, 78, 7);
+    amitablet_draw_arrow_up(canvas, 32, 61);
+    amitablet_draw_arrow_down(canvas, 32, 95);
+    amitablet_draw_arrow_left(canvas, 15, 78);
+    amitablet_draw_arrow_right(canvas, 49, 78);
+
+    /* Compact legend */
+    canvas_set_font(canvas, FontSecondary);
+    canvas_draw_str(canvas, 4, 108, "UP/DN  SCROLL");
+    canvas_draw_str(canvas, 4, 117, "L/R    NAV");
+    canvas_draw_str(canvas, 4, 126, "OK=RCLICK  HOLD=EXIT");
 }
 
 static void amitablet_input_callback(InputEvent* input_event, void* context) {
