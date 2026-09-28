@@ -204,7 +204,7 @@ int32_t amitablet_app(void* p) {
     app->running = true;
     app->input_queue = furi_message_queue_alloc(8, sizeof(InputEvent));
     app->view_port = view_port_alloc();
-    view_port_set_orientation(app->view_port, ViewPortOrientationVertical);
+    view_port_set_orientation(app->view_port, ViewPortOrientationVerticalFlip);
 
     view_port_draw_callback_set(app->view_port, amitablet_draw_callback, app);
     view_port_input_callback_set(app->view_port, amitablet_input_callback, app);
