@@ -1,0 +1,37 @@
+name: Build AmiTablet FAP
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install uFBT
+        run: python -m pip install --upgrade ufbt
+
+      - name: Initialize Flipper SDK
+        run: ufbt update --index-url=https://update.flipperzero.one/firmware/directory.json --channel=release
+
+      - name: Build AmiTablet
+        run: ufbt
+
+      - name: Upload FAP
+        uses: actions/upload-artifact@v4
+        with:
+          name: AmiTablet-fap
+          path: dist/*.fap
+          if-no-files-found: error
