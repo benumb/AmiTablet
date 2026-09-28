@@ -8,6 +8,7 @@
 #include <extra_profiles/hid_profile.h>
 
 #include "amitablet_ble_profile.h"
+#include "amitablet_icons.h"
 
 #define AMITABLET_BT_KEYS_FILE ".bt_hid.keys"
 #define AMITABLET_SCROLL_STEP 1
@@ -22,31 +23,14 @@ typedef struct {
     bool running;
 } AmiTabletApp;
 
-static void amitablet_draw_logo(Canvas* canvas, int32_t x, int32_t y) {
-    /* Same pictogram as the app-list icon:
-       landscape tablet + diagonal stylus. */
-    canvas_draw_frame(canvas, x, y + 4, 46, 22);
-    canvas_draw_frame(canvas, x + 3, y + 7, 35, 16);
-    canvas_draw_line(canvas, x + 39, y + 6, x + 39, y + 23);
-    canvas_draw_circle(canvas, x + 42, y + 15, 1);
-
-    /* Stylus */
-    canvas_draw_line(canvas, x + 29, y + 21, x + 45, y + 2);
-    canvas_draw_line(canvas, x + 31, y + 22, x + 47, y + 4);
-    canvas_draw_line(canvas, x + 29, y + 21, x + 32, y + 19);
-
-    /* Small handwriting mark */
-    canvas_draw_line(canvas, x + 10, y + 18, x + 14, y + 14);
-    canvas_draw_line(canvas, x + 14, y + 14, x + 18, y + 17);
-    canvas_draw_line(canvas, x + 18, y + 17, x + 23, y + 15);
-}
-
 static void amitablet_draw_callback(Canvas* canvas, void* context) {
     AmiTabletApp* app = context;
 
     canvas_clear(canvas);
 
-    amitablet_draw_logo(canvas, 8, 1);
+    /* Exact bitmap asset derived from the same AmiTablet pictogram
+       used for the app-list icon. */
+    canvas_draw_icon(canvas, 8, 1, &I_amitablet_logo);
 
     canvas_set_font(canvas, FontPrimary);
     canvas_draw_str(canvas, 4, 38, "AmiTablet");
