@@ -25,176 +25,133 @@ typedef struct {
     const char* last_input;
 } AmiTabletApp;
 
-#define AMITABLET_VERSION_LABEL "v1.0"
+#define AMITABLET_VERSION_LABEL "v1.1"
 
 /* ------------------------------------------------------------------ */
-/* V1.0 portrait UI (64x128 with ViewPortOrientationVerticalFlip).     */
-/* Reproduces the structure of image.png (approved mockup 2), adapted  */
-/* to the 64px canvas and the real Flipper fonts:                      */
-/*   y  0..56  header card (framed): icon, title, version, BLE badge   */
-/*   y 58..111 6 row cards (framed): keycap + divider + label          */
-/*   y112..127 footer bar (framed exit hint, two lines)                */
-/* Mockup deviations forced by the 64px width (documented):            */
-/* - version sits right-aligned below the title (same-line overflows)  */
-/* - BACK uses a return-arrow keycap (a "BACK" capsule plus the        */
-/*   "Screenshot" label cannot co-exist in 64px)                        */
-/* - footer hint is two lines ("Hold BACK to exit" is 91px on one)     */
-/* - no separator line: the footer bar itself separates (as in mockup) */
-/* All coordinates below are in portrait space.                        */
+/* V1.1 portrait UI (64x128 with ViewPortOrientationVerticalFlip).     */
+/* Pixel-faithful reproduction of image.png: every text line, the      */
+/* control circle and the central diamond are bitmaps extracted from   */
+/* the 64x128 reference; frames use standard canvas primitives.        */
+/* Composed lines ("v1.1", "BT-WAIT") reuse the reference glyphs.      */
+/* Layout (portrait space):                                            */
+/*   y  0,34   blank margins                                           */
+/*   y  1..33  header frame: AMITABLET, version, BT badge              */
+/*   y 35..114 black main block with white control circle              */
+/*   y115,116  blank gap                                               */
+/*   y117..126 footer frame: HOLD BACK TO EXIT                         */
+/*   y127      blank margin                                            */
 /* ------------------------------------------------------------------ */
 
-static void amitablet_draw_centered(Canvas* canvas, int32_t cx, int32_t y, const char* str) {
-    uint16_t w = canvas_string_width(canvas, str);
-    canvas_draw_str(canvas, cx - (int32_t)w / 2, y, str);
+/* Blits 1-bit data with the current canvas color. */
+static void amitablet_blt(
+    Canvas* canvas,
+    int32_t x,
+    int32_t y,
+    uint8_t w,
+    uint8_t h,
+    const uint8_t* data) {
+    uint8_t nb = (uint8_t)((w + 7) / 8);
+    for(uint8_t r = 0; r < h; r++) {
+        for(uint8_t c = 0; c < w; c++) {
+            if(data[r * nb + c / 8] & (0x80 >> (c % 8))) {
+                canvas_draw_box(canvas, x + c, y + r, 1, 1);
+            }
+        }
+    }
 }
 
-/* Row labels sit at x=13; on unexpected fonts the start shifts left so
-   text can never clip at the canvas edge (measured widths fit today). */
-static void amitablet_draw_row_label(Canvas* canvas, int32_t y, const char* str) {
-    int32_t w = (int32_t)canvas_string_width(canvas, str);
-    int32_t x = 13;
-    if(x + w > 63) x = 63 - w;
-    canvas_draw_str(canvas, x, y, str);
-}
+static const uint8_t amitablet_bmp_title[] = {0x73, 0xE5, 0xF3, 0xCE, 0x41, 0xE7, 0xC0, 0x8A, 0xA4, 0x42, 0x4A, 0x41, 0x01, 0x00, 0x8A, 0xA4, 0x42, 0x4A, 0x41, 0x01, 0x00, 0xFA, 0xA4, 0x43, 0xCF, 0x41, 0xC1, 0x00, 0x8A, 0x24, 0x42, 0x49, 0x41, 0x01, 0x00, 0x8A, 0x24, 0x42, 0x4F, 0x79, 0xE1, 0x00}; /* AMITABLET 50x6 at (7,6) */
+static const uint8_t amitablet_bmp_v11[] = {0xA4, 0x20, 0xA4, 0x20, 0xA4, 0x20, 0x45, 0x20}; /* v1.1 12x4 at (50,14) */
+static const uint8_t amitablet_bmp_btok[] = {0xF0, 0x06, 0x50, 0x97, 0x09, 0x50, 0x92, 0x09, 0x60, 0xFA, 0x69, 0x50, 0x8A, 0x09, 0x50, 0xFA, 0x06, 0x50}; /* BT-OK 20x6 at (22,22) */
+static const uint8_t amitablet_bmp_btwait[] = {0xF0, 0x08, 0x9C, 0x80, 0x97, 0x08, 0xA2, 0xB8, 0x92, 0x08, 0xA2, 0x90, 0xFA, 0x6A, 0xBE, 0x90, 0x8A, 0x0A, 0xA2, 0x90, 0xFA, 0x05, 0x22, 0x90}; /* BT-WAIT 30x6 at (17,22) */
+static const uint8_t amitablet_bmp_up[] = {0x97, 0x00, 0x94, 0x80, 0x97, 0x00, 0x94, 0x00, 0x64, 0x00}; /* UP 9x5 at (28,51) */
+static const uint8_t amitablet_bmp_sc1[] = {0x63, 0x63, 0x24, 0x84, 0x54, 0xA4, 0x64, 0x64, 0xA4, 0x14, 0x54, 0xA4, 0x63, 0x53, 0x36}; /* SCROLL 23x5 at (20,58) */
+static const uint8_t amitablet_bmp_ctrlL[] = {0x6E, 0x98, 0x84, 0x94, 0x84, 0x98, 0x84, 0x94, 0x64, 0xD4}; /* CTRL 14x5 at (6,68) */
+static const uint8_t amitablet_bmp_ctrlR[] = {0x6E, 0x98, 0x84, 0x94, 0x84, 0x98, 0x84, 0x94, 0x64, 0xD4}; /* CTRL 14x5 at (44,68) */
+static const uint8_t amitablet_bmp_plusL[] = {0x40, 0xE0, 0x40}; /* + 3x3 at (11,75) */
+static const uint8_t amitablet_bmp_plusR[] = {0x40, 0xE0, 0x40}; /* + 3x3 at (50,75) */
+static const uint8_t amitablet_bmp_c[] = {0x60, 0x80, 0x80, 0x80, 0x60}; /* C 3x5 at (11,80) */
+static const uint8_t amitablet_bmp_v[] = {0xA0, 0xA0, 0xA0, 0xA0, 0x40}; /* V 3x5 at (50,80) */
+static const uint8_t amitablet_bmp_sc2[] = {0x63, 0x63, 0x24, 0x84, 0x54, 0xA4, 0x64, 0x64, 0xA4, 0x14, 0x54, 0xA4, 0x63, 0x53, 0x36}; /* SCROLL 23x5 at (20,88) */
+static const uint8_t amitablet_bmp_down[] = {0xC6, 0x45, 0x20, 0xA9, 0x45, 0xA0, 0xA9, 0x55, 0x60, 0xA9, 0x55, 0x20, 0xC6, 0x29, 0x20}; /* DOWN 19x5 at (22,95) */
+static const uint8_t amitablet_bmp_foot[] = {0xA6, 0x4C, 0x62, 0x35, 0x39, 0x8D, 0x5D, 0xD0, 0xA9, 0x4A, 0x55, 0x45, 0x12, 0x49, 0x48, 0x90, 0xE9, 0x4A, 0x65, 0x46, 0x12, 0x4C, 0x88, 0x90, 0xA9, 0x4A, 0x57, 0x45, 0x12, 0x49, 0x48, 0x90, 0xA6, 0x6C, 0x65, 0x35, 0x11, 0x8D, 0x5C, 0x90}; /* HOLD BACK TO EXIT 60x5 at (3,119) */
 
-/* Pictograms below draw inside a 9x7 cell at (bx, by). */
+/* White control circle silhouette: horizontal spans for rows 46..104. */
+static const uint8_t amitablet_circle[][2] = {
+    {26,37}, {22,41}, {20,43}, {18,45}, {16,47}, {15,48}, {13,50}, {12,51}, {11,52}, {10,53}, {9,54}, {9,54}, {8,55}, {7,56}, {7,56}, {6,57}, {6,57}, {5,58}, {5,58}, {4,59}, {4,59}, {4,59}, {3,60}, {3,60}, {3,60}, {3,60}, {3,60}, {3,60}, {3,60}, {3,60}, {3,60}, {3,60}, {3,60}, {3,60}, {3,60}, {3,60}, {3,60}, {3,60}, {4,59}, {4,59}, {4,59}, {5,58}, {5,58}, {6,57}, {6,57}, {7,56}, {7,56}, {8,55}, {9,54}, {9,54}, {10,53}, {11,52}, {12,51}, {13,50}, {15,48}, {16,47}, {18,45}, {20,43}, {22,41}};
 
-static void amitablet_draw_picto_up(Canvas* canvas, int32_t bx, int32_t by) {
-    int32_t cx = bx + 4;
-    canvas_draw_line(canvas, cx, by + 1, cx - 2, by + 4);
-    canvas_draw_line(canvas, cx, by + 1, cx + 2, by + 4);
-    canvas_draw_line(canvas, cx - 2, by + 4, cx + 2, by + 4);
-}
+/* Central diamond + ticks: black runs (y, x0, x1). */
+static const uint8_t amitablet_diamond[][3] = {
+    {66,31,32}, {67,30,33}, {69,30,33}, {70,29,34}, {71,28,35}, {72,27,36}, {73,27,36}, {74,24,24}, {74,26,37}, {74,39,39}, {75,24,24}, {75,26,37}, {75,39,39}, {76,27,36}, {77,27,36}, {78,28,35}, {79,29,34}, {80,30,33}, {82,30,33}, {83,31,32}};
 
-static void amitablet_draw_picto_down(Canvas* canvas, int32_t bx, int32_t by) {
-    int32_t cx = bx + 4;
-    canvas_draw_line(canvas, cx, by + 5, cx - 2, by + 2);
-    canvas_draw_line(canvas, cx, by + 5, cx + 2, by + 2);
-    canvas_draw_line(canvas, cx - 2, by + 2, cx + 2, by + 2);
-}
-
-static void amitablet_draw_picto_left(Canvas* canvas, int32_t bx, int32_t by) {
-    int32_t cy = by + 3;
-    canvas_draw_line(canvas, bx + 1, cy, bx + 4, cy - 2);
-    canvas_draw_line(canvas, bx + 1, cy, bx + 4, cy + 2);
-    canvas_draw_line(canvas, bx + 4, cy - 2, bx + 4, cy + 2);
-}
-
-static void amitablet_draw_picto_right(Canvas* canvas, int32_t bx, int32_t by) {
-    int32_t cy = by + 3;
-    canvas_draw_line(canvas, bx + 7, cy, bx + 4, cy - 2);
-    canvas_draw_line(canvas, bx + 7, cy, bx + 4, cy + 2);
-    canvas_draw_line(canvas, bx + 4, cy - 2, bx + 4, cy + 2);
-}
-
-static void amitablet_draw_picto_ok(Canvas* canvas, int32_t bx, int32_t by) {
-    canvas_draw_circle(canvas, bx + 4, by + 3, 2);
-    canvas_draw_dot(canvas, bx + 4, by + 3);
-}
-
-/* BACK return-arrow pictogram in a 9x7 cell at (bx, by).
-   A "BACK" text capsule (as in mockup 2) does not fit next to the
-   "Screenshot" label in 64px, so a return-arrow glyph is used. */
-static void amitablet_draw_picto_back(Canvas* canvas, int32_t bx, int32_t by) {
-    canvas_draw_line(canvas, bx + 6, by + 1, bx + 6, by + 4);
-    canvas_draw_line(canvas, bx + 6, by + 4, bx + 2, by + 4);
-    canvas_draw_line(canvas, bx + 2, by + 4, bx + 4, by + 2);
-    canvas_draw_line(canvas, bx + 2, by + 4, bx + 4, by + 5);
-}
-
-/* Mini Bluetooth rune, 5x7 at (x, y). */
-static void amitablet_draw_bt(Canvas* canvas, int32_t x, int32_t y) {
-    canvas_draw_line(canvas, x + 2, y, x + 2, y + 6);
-    canvas_draw_line(canvas, x + 2, y, x + 4, y + 2);
-    canvas_draw_line(canvas, x + 4, y + 2, x + 2, y + 3);
-    canvas_draw_line(canvas, x + 2, y + 3, x + 4, y + 4);
-    canvas_draw_line(canvas, x + 4, y + 4, x + 2, y + 6);
-}
-
-/* Confirmation tick, 6x5 at (x, y). */
-static void amitablet_draw_check(Canvas* canvas, int32_t x, int32_t y) {
-    canvas_draw_line(canvas, x, y + 3, x + 2, y + 5);
-    canvas_draw_line(canvas, x + 2, y + 5, x + 5, y + 1);
-}
-
-typedef void (*AmiTabletPictoFn)(Canvas* canvas, int32_t bx, int32_t by);
+/* Old V1.0 pictograms removed: V1.1 draws mockup-extracted bitmaps. */
 
 static void amitablet_draw_callback(Canvas* canvas, void* context) {
     AmiTabletApp* app = context;
+    size_t i;
 
     canvas_clear(canvas);
 
-    /* Header card: tablet-and-stylus icon, title, discreet version. */
-    canvas_draw_rframe(canvas, 1, 0, 62, 57, 2);
-    canvas_draw_icon(canvas, 8, 1, &I_amitablet_logo);
+    /* Header frame. */
+    canvas_draw_rframe(canvas, 1, 1, 62, 33, 2);
+    canvas_draw_rframe(canvas, 2, 2, 60, 31, 1);
 
-    canvas_set_font(canvas, FontPrimary);
-    amitablet_draw_centered(canvas, 32, 37, "AmiTablet");
+    /* Title + version (mockup bitmaps). */
+    amitablet_blt(canvas, 7, 6, 50, 6, amitablet_bmp_title);
+    amitablet_blt(canvas, 50, 14, 12, 4, amitablet_bmp_v11);
 
-    /* Version sits right-aligned below the title (mockup places it at
-       the right of the title; same-line does not fit in 64px). */
-    canvas_set_font(canvas, FontSecondary);
-    {
-        uint16_t vw = canvas_string_width(canvas, AMITABLET_VERSION_LABEL);
-        canvas_draw_str(canvas, 60 - (int32_t)vw, 45, AMITABLET_VERSION_LABEL);
-    }
-
-    /* BLE status badge: inverted rounded capsule (mockup 2) with BT
-       symbol, status text, and a tick when linked. Text is measured so
-       nothing can overflow the 64px width. */
-    const char* ble_text = app->connected ? "BLE: OK" : "BLE: WAIT";
-    uint16_t ble_w = canvas_string_width(canvas, ble_text);
-    /* Group: [bt 5px][gap 2][text][gap 2 + check 6px when connected]. */
-    int32_t group_w = 7 + (int32_t)ble_w + (app->connected ? 8 : 0);
-    bool ble_compact = (group_w <= 52);
-    canvas_draw_rbox(canvas, 5, 46, 54, 10, 3);
-    canvas_invert_color(canvas);
-    if(ble_compact) {
-        int32_t gx = 5 + (54 - group_w) / 2;
-        amitablet_draw_bt(canvas, gx, 47);
-        canvas_draw_str(canvas, gx + 7, 53, ble_text);
-        if(app->connected) {
-            amitablet_draw_check(canvas, gx + 7 + (int32_t)ble_w + 2, 47);
-        }
+    /* BLE badge: filled capsule, white state text. */
+    canvas_draw_rbox(canvas, 15, 21, 34, 8, 3);
+    canvas_set_color(canvas, ColorWhite);
+    if(app->connected) {
+        amitablet_blt(canvas, 22, 22, 20, 6, amitablet_bmp_btok);
     } else {
-        /* Fallback: centered text only, guaranteed to fit. */
-        amitablet_draw_centered(canvas, 32, 53, ble_text);
+        amitablet_blt(canvas, 17, 22, 30, 6, amitablet_bmp_btwait);
     }
-    canvas_invert_color(canvas);
+    canvas_set_color(canvas, ColorBlack);
 
-    /* Control rows: framed cards with keycap, divider and label. */
-    static const AmiTabletPictoFn pictos[6] = {
-        amitablet_draw_picto_up,
-        amitablet_draw_picto_down,
-        amitablet_draw_picto_left,
-        amitablet_draw_picto_right,
-        amitablet_draw_picto_ok,
-        amitablet_draw_picto_back,
-    };
-    static const char* const labels[6] = {
-        "Scroll up",
-        "Scroll down",
-        "Back",
-        "Forward",
-        "Right-click",
-        "Screenshot",
-    };
-    for(int i = 0; i < 6; i++) {
-        int32_t ry = 58 + i * 9;
-        canvas_draw_rframe(canvas, 1, ry, 62, 9, 1);
-        canvas_draw_rframe(canvas, 2, ry + 1, 9, 7, 1);
-        pictos[i](canvas, 2, ry + 1);
-        canvas_draw_line(canvas, 12, ry + 2, 12, ry + 6);
-        amitablet_draw_row_label(canvas, ry + 7, labels[i]);
+    /* Black main block. */
+    canvas_draw_box(canvas, 1, 36, 62, 78);
+    canvas_draw_line(canvas, 2, 35, 61, 35);
+    canvas_draw_line(canvas, 2, 114, 61, 114);
+
+    /* White control circle. */
+    canvas_set_color(canvas, ColorWhite);
+    for(i = 0; i < sizeof(amitablet_circle) / sizeof(amitablet_circle[0]); i++) {
+        canvas_draw_line(
+            canvas, amitablet_circle[i][0], (int32_t)(46 + i), amitablet_circle[i][1], (int32_t)(46 + i));
+    }
+    canvas_set_color(canvas, ColorBlack);
+
+    /* Circle labels (mockup bitmaps, black on white). */
+    amitablet_blt(canvas, 28, 51, 9, 5, amitablet_bmp_up);
+    amitablet_blt(canvas, 20, 58, 23, 5, amitablet_bmp_sc1);
+    amitablet_blt(canvas, 6, 68, 14, 5, amitablet_bmp_ctrlL);
+    amitablet_blt(canvas, 44, 68, 14, 5, amitablet_bmp_ctrlR);
+    amitablet_blt(canvas, 11, 75, 3, 3, amitablet_bmp_plusL);
+    amitablet_blt(canvas, 50, 75, 3, 3, amitablet_bmp_plusR);
+    amitablet_blt(canvas, 11, 80, 3, 5, amitablet_bmp_c);
+    amitablet_blt(canvas, 50, 80, 3, 5, amitablet_bmp_v);
+    amitablet_blt(canvas, 20, 88, 23, 5, amitablet_bmp_sc2);
+    amitablet_blt(canvas, 22, 95, 19, 5, amitablet_bmp_down);
+
+    /* Central diamond + ticks (right click). */
+    for(i = 0; i < sizeof(amitablet_diamond) / sizeof(amitablet_diamond[0]); i++) {
+        canvas_draw_line(
+            canvas,
+            amitablet_diamond[i][1],
+            amitablet_diamond[i][0],
+            amitablet_diamond[i][2],
+            amitablet_diamond[i][0]);
     }
 
-    /* Footer bar: framed exit hint (two lines to fit 64px). */
-    canvas_draw_rframe(canvas, 1, 112, 62, 16, 2);
-    amitablet_draw_centered(canvas, 32, 120, "Hold BACK");
-    amitablet_draw_centered(canvas, 32, 126, "to exit");
+    /* Footer frame + exit hint. */
+    canvas_draw_rframe(canvas, 1, 117, 62, 9, 1);
+    canvas_draw_line(canvas, 3, 126, 60, 126);
+    amitablet_blt(canvas, 3, 119, 60, 5, amitablet_bmp_foot);
 
     /* V0.9 diagnostic state is intentionally not drawn over the final UI.
-       It is logged to the console to preserve the V1.0 design. */
+       It is logged to the console to preserve the V1.1 design. */
 }
 
 static void amitablet_input_callback(InputEvent* input_event, void* context) {
@@ -261,6 +218,7 @@ static void amitablet_ble_deinit(AmiTabletApp* app) {
     if(app->ble_profile) {
         ble_profile_hid_mouse_release_all(app->ble_profile);
         ble_profile_hid_consumer_key_release_all(app->ble_profile);
+        ble_profile_hid_kb_release_all(app->ble_profile);
     }
 
     bt_set_status_changed_callback(app->bt, NULL, NULL);
@@ -296,15 +254,34 @@ static void amitablet_right_click_release(AmiTabletApp* app) {
     }
 }
 
-static void amitablet_consumer_press(AmiTabletApp* app, uint16_t key) {
+/* LEFT: Ctrl+C (copy). The HID profile packs modifiers in the high byte,
+   so a single press call sets Ctrl+C together; release C, then Ctrl. */
+static void amitablet_copy_press(AmiTabletApp* app) {
     if(app->ble_profile && app->connected) {
-        ble_profile_hid_consumer_key_press(app->ble_profile, key);
+        ble_profile_hid_kb_press(
+            app->ble_profile, (uint16_t)(KEY_MOD_LEFT_CTRL | HID_KEYBOARD_C));
     }
 }
 
-static void amitablet_consumer_release(AmiTabletApp* app, uint16_t key) {
+static void amitablet_copy_release(AmiTabletApp* app) {
     if(app->ble_profile && app->connected) {
-        ble_profile_hid_consumer_key_release(app->ble_profile, key);
+        ble_profile_hid_kb_release(app->ble_profile, HID_KEYBOARD_C);
+        ble_profile_hid_kb_release(app->ble_profile, KEY_MOD_LEFT_CTRL);
+    }
+}
+
+/* RIGHT: Ctrl+V (paste). Same press/release sequence as copy. */
+static void amitablet_paste_press(AmiTabletApp* app) {
+    if(app->ble_profile && app->connected) {
+        ble_profile_hid_kb_press(
+            app->ble_profile, (uint16_t)(KEY_MOD_LEFT_CTRL | HID_KEYBOARD_V));
+    }
+}
+
+static void amitablet_paste_release(AmiTabletApp* app) {
+    if(app->ble_profile && app->connected) {
+        ble_profile_hid_kb_release(app->ble_profile, HID_KEYBOARD_V);
+        ble_profile_hid_kb_release(app->ble_profile, KEY_MOD_LEFT_CTRL);
     }
 }
 
@@ -378,17 +355,17 @@ static void amitablet_handle_input(AmiTabletApp* app, const InputEvent* event) {
 
     case InputKeyLeft:
         if(event->type == InputTypePress) {
-            amitablet_consumer_press(app, HID_CONSUMER_AC_BACK);
+            amitablet_copy_press(app);
         } else if(event->type == InputTypeRelease) {
-            amitablet_consumer_release(app, HID_CONSUMER_AC_BACK);
+            amitablet_copy_release(app);
         }
         break;
 
     case InputKeyRight:
         if(event->type == InputTypePress) {
-            amitablet_consumer_press(app, HID_CONSUMER_AC_FORWARD);
+            amitablet_paste_press(app);
         } else if(event->type == InputTypeRelease) {
-            amitablet_consumer_release(app, HID_CONSUMER_AC_FORWARD);
+            amitablet_paste_release(app);
         }
         break;
 
