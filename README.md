@@ -29,16 +29,22 @@ A long **BACK** press exits AmiTablet and never triggers a screenshot.
 
 ## V1.0 screen
 
-Portrait UI (`ViewPortOrientationVerticalFlip`, 64x128, mockup 2):
+Portrait UI (`ViewPortOrientationVerticalFlip`, 64x128) reproducing the
+structure of `image.png` (approved mockup 2):
 
-1. Header: tablet-and-stylus icon, `AmiTablet` title, discreet `v1.0` label.
-2. BLE badge (inverted capsule): `BLE: WAIT` (waiting) / `BLE: OK`
-   (connected), with a Bluetooth mark and a confirmation tick when
-   connected.
-3. Controls list (framed pictogram + label per row):
-   Up = Scroll up, Down = Scroll down, Left = Back, Right = Forward,
-   OK = Right-click, BACK = Screenshot.
-4. Footer: `Hold BACK` / `to exit` (long press exits).
+1. Header card (framed): tablet-and-stylus icon, `AmiTablet` title,
+   discreet `v1.0` label at the right, inverted `BLE: WAIT` / `BLE: OK`
+   capsule with Bluetooth mark and confirmation tick when connected.
+2. Six framed control rows, each with a keycap pictogram, a divider and
+   a label: Up = Scroll up, Down = Scroll down, Left = Back,
+   Right = Forward, OK = Right-click, BACK = Screenshot.
+3. Footer bar (framed): `Hold BACK` / `to exit` (long press exits).
+
+Adaptations forced by the 64px canvas: the version sits below the title
+(the mockup same-line placement overflows), the BACK keycap is a
+return-arrow glyph (a `BACK` capsule plus the `Screenshot` label cannot
+co-exist), and the footer hint is two lines (`Hold BACK to exit` is
+91px on a single line).
 
 ## Bluetooth
 

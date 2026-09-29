@@ -29,14 +29,17 @@ typedef struct {
 
 /* ------------------------------------------------------------------ */
 /* V1.0 portrait UI (64x128 with ViewPortOrientationVerticalFlip).     */
-/* Follows approved mockup 2, adapted to 64px width:                   */
-/*   y  0..27  header icon (48x28, centered)                           */
-/*   y 37      title "AmiTablet" (FontPrimary, centered)               */
-/*   y 45      version label (FontSecondary, centered, discreet)       */
-/*   y 46..56  BLE status badge (inverted rounded capsule)             */
-/*   y 57..110 6 control rows, 9px each (framed pictogram + label)     */
-/*   y 110     separator line                                         */
-/*   y112..127 footer frame with exit hint (two lines)                 */
+/* Reproduces the structure of image.png (approved mockup 2), adapted  */
+/* to the 64px canvas and the real Flipper fonts:                      */
+/*   y  0..56  header card (framed): icon, title, version, BLE badge   */
+/*   y 58..111 6 row cards (framed): keycap + divider + label          */
+/*   y112..127 footer bar (framed exit hint, two lines)                */
+/* Mockup deviations forced by the 64px width (documented):            */
+/* - version sits right-aligned below the title (same-line overflows)  */
+/* - BACK uses a return-arrow keycap (a "BACK" capsule plus the        */
+/*   "Screenshot" label cannot co-exist in 64px)                        */
+/* - footer hint is two lines ("Hold BACK to exit" is 91px on one)     */
+/* - no separator line: the footer bar itself separates (as in mockup) */
 /* All coordinates below are in portrait space.                        */
 /* ------------------------------------------------------------------ */
 
@@ -45,9 +48,13 @@ static void amitablet_draw_centered(Canvas* canvas, int32_t cx, int32_t y, const
     canvas_draw_str(canvas, cx - (int32_t)w / 2, y, str);
 }
 
-static void amitablet_draw_right_aligned(Canvas* canvas, int32_t x_right, int32_t y, const char* str) {
-    uint16_t w = canvas_string_width(canvas, str);
-    canvas_draw_str(canvas, x_right - (int32_t)w, y, str);
+/* Row labels sit at x=13; on unexpected fonts the start shifts left so
+   text can never clip at the canvas edge (measured widths fit today). */
+static void amitablet_draw_row_label(Canvas* canvas, int32_t y, const char* str) {
+    int32_t w = (int32_t)canvas_string_width(canvas, str);
+    int32_t x = 13;
+    if(x + w > 63) x = 63 - w;
+    canvas_draw_str(canvas, x, y, str);
 }
 
 /* Pictograms below draw inside a 9x7 cell at (bx, by). */
@@ -117,14 +124,20 @@ static void amitablet_draw_callback(Canvas* canvas, void* context) {
 
     canvas_clear(canvas);
 
-    /* Header: tablet-and-stylus icon, title, discreet version. */
-    canvas_draw_icon(canvas, 8, 0, &I_amitablet_logo);
+    /* Header card: tablet-and-stylus icon, title, discreet version. */
+    canvas_draw_rframe(canvas, 1, 0, 62, 57, 2);
+    canvas_draw_icon(canvas, 8, 1, &I_amitablet_logo);
 
     canvas_set_font(canvas, FontPrimary);
     amitablet_draw_centered(canvas, 32, 37, "AmiTablet");
 
+    /* Version sits right-aligned below the title (mockup places it at
+       the right of the title; same-line does not fit in 64px). */
     canvas_set_font(canvas, FontSecondary);
-    amitablet_draw_centered(canvas, 32, 45, AMITABLET_VERSION_LABEL);
+    {
+        uint16_t vw = canvas_string_width(canvas, AMITABLET_VERSION_LABEL);
+        canvas_draw_str(canvas, 60 - (int32_t)vw, 45, AMITABLET_VERSION_LABEL);
+    }
 
     /* BLE status badge: inverted rounded capsule (mockup 2) with BT
        symbol, status text, and a tick when linked. Text is measured so
@@ -133,23 +146,23 @@ static void amitablet_draw_callback(Canvas* canvas, void* context) {
     uint16_t ble_w = canvas_string_width(canvas, ble_text);
     /* Group: [bt 5px][gap 2][text][gap 2 + check 6px when connected]. */
     int32_t group_w = 7 + (int32_t)ble_w + (app->connected ? 8 : 0);
-    bool ble_compact = (group_w <= 54);
-    int32_t gx = ble_compact ? (3 + (58 - group_w) / 2) : 3;
-    canvas_draw_rbox(canvas, 3, 46, 58, 11, 3);
+    bool ble_compact = (group_w <= 52);
+    canvas_draw_rbox(canvas, 5, 46, 54, 10, 3);
     canvas_invert_color(canvas);
     if(ble_compact) {
+        int32_t gx = 5 + (54 - group_w) / 2;
         amitablet_draw_bt(canvas, gx, 47);
-        canvas_draw_str(canvas, gx + 7, 54, ble_text);
+        canvas_draw_str(canvas, gx + 7, 53, ble_text);
         if(app->connected) {
             amitablet_draw_check(canvas, gx + 7 + (int32_t)ble_w + 2, 47);
         }
     } else {
         /* Fallback: centered text only, guaranteed to fit. */
-        amitablet_draw_centered(canvas, 32, 54, ble_text);
+        amitablet_draw_centered(canvas, 32, 53, ble_text);
     }
     canvas_invert_color(canvas);
 
-    /* Main controls list: 6 rows, framed pictogram left + label right. */
+    /* Control rows: framed cards with keycap, divider and label. */
     static const AmiTabletPictoFn pictos[6] = {
         amitablet_draw_picto_up,
         amitablet_draw_picto_down,
@@ -167,15 +180,16 @@ static void amitablet_draw_callback(Canvas* canvas, void* context) {
         "Screenshot",
     };
     for(int i = 0; i < 6; i++) {
-        int32_t ry = 57 + i * 9;
-        canvas_draw_rframe(canvas, 2, ry, 9, 7, 1);
-        pictos[i](canvas, 2, ry);
-        amitablet_draw_right_aligned(canvas, 62, ry + 7, labels[i]);
+        int32_t ry = 58 + i * 9;
+        canvas_draw_rframe(canvas, 1, ry, 62, 9, 1);
+        canvas_draw_rframe(canvas, 2, ry + 1, 9, 7, 1);
+        pictos[i](canvas, 2, ry + 1);
+        canvas_draw_line(canvas, 12, ry + 2, 12, ry + 6);
+        amitablet_draw_row_label(canvas, ry + 7, labels[i]);
     }
 
-    /* Footer: separator + framed exit hint (two lines to fit 64px). */
-    canvas_draw_line(canvas, 6, 110, 58, 110);
-    canvas_draw_rframe(canvas, 4, 112, 56, 16, 2);
+    /* Footer bar: framed exit hint (two lines to fit 64px). */
+    canvas_draw_rframe(canvas, 1, 112, 62, 16, 2);
     amitablet_draw_centered(canvas, 32, 120, "Hold BACK");
     amitablet_draw_centered(canvas, 32, 126, "to exit");
 
