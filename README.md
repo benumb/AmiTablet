@@ -4,16 +4,21 @@ AmiTablet is a Bluetooth HID remote for Flipper Zero, designed for tablets and d
 
 It provides quick access to mouse and navigation controls that are awkward or missing on some devices.
 
-## V0.8 controls
+## V1.0 controls
 
-- **Up** — Scroll up
-- **Down** — Scroll down
-- **Left** — Back
-- **Right** — Forward
-- **OK** — Right click
-- **BACK (long press)** — Exit AmiTablet
+- **UP** — Scroll up
+- **DOWN** — Scroll down
+- **LEFT** — Back
+- **RIGHT** — Forward
+- **OK** — Right-click
+- **BACK** — Screenshot (sends Print Screen to Windows)
+- **Hold BACK** — Exit AmiTablet
 
 Holding **Up** or **Down** repeats the mouse-wheel action.
+
+A short **BACK** press sends the HID keyboard Print Screen key to the
+connected Windows host, which takes a normal full-screen screenshot.
+A long **BACK** press exits AmiTablet and never triggers a screenshot.
 
 ## Target
 
@@ -22,21 +27,23 @@ Holding **Up** or **Down** repeats the mouse-wheel action.
 - Windows / Android
 - Bluetooth HID
 
-## V0.8 screen
+## V1.0 screen
 
-Portrait UI (`ViewPortOrientationVerticalFlip`, 64x128):
+Portrait UI (`ViewPortOrientationVerticalFlip`, 64x128, mockup 2):
 
-1. Header: tablet-and-stylus icon, `AmiTablet` title, discreet `v0.8` label.
-2. BLE badge: `BLE: WAIT` (waiting) / `BLE: OK` (connected), with a
-   Bluetooth mark and a confirmation tick when connected.
-3. Controls list (pictogram + label per row):
-   Up/Down = Scroll, Left = Back, Right = Forward, OK = Right-click.
+1. Header: tablet-and-stylus icon, `AmiTablet` title, discreet `v1.0` label.
+2. BLE badge (inverted capsule): `BLE: WAIT` (waiting) / `BLE: OK`
+   (connected), with a Bluetooth mark and a confirmation tick when
+   connected.
+3. Controls list (framed pictogram + label per row):
+   Up = Scroll up, Down = Scroll down, Left = Back, Right = Forward,
+   OK = Right-click, BACK = Screenshot.
 4. Footer: `Hold BACK` / `to exit` (long press exits).
 
 ## Bluetooth
 
 V0.2 gave AmiTablet its own Bluetooth identity
-(kept unchanged since, including in V0.8):
+(kept unchanged since, including in V1.0):
 
 - advertised name: **AmiTablet**
 - stable BLE address derived from the Flipper address
@@ -53,7 +60,7 @@ Before testing V0.2, remove any old broken AmiTablet/unknown HID pairing from Wi
 
 ## Current status
 
-**V0.8 UI redesign**
+**V1.0 UI and screenshot control**
 
 Kept intact from previous versions:
 

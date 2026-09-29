@@ -25,23 +25,29 @@ typedef struct {
     const char* last_input;
 } AmiTabletApp;
 
-#define AMITABLET_VERSION_LABEL "v0.9"
+#define AMITABLET_VERSION_LABEL "v1.0"
 
 /* ------------------------------------------------------------------ */
-/* V0.8 portrait UI (64x128 with ViewPortOrientationVerticalFlip).     */
-/* All coordinates below are in portrait space. Layout:                */
-/*   y  0..28  header icon (48x28, centered)                           */
-/*   y 38      title "AmiTablet" (FontPrimary, centered)               */
-/*   y 46      version label (FontSecondary, centered, discreet)       */
-/*   y 48..60  BLE status badge (framed)                              */
-/*   y 61..106 5 control rows, 9px each                               */
-/*   y 108     separator line                                         */
-/*   y110..127 footer frame with exit hint                            */
+/* V1.0 portrait UI (64x128 with ViewPortOrientationVerticalFlip).     */
+/* Follows approved mockup 2, adapted to 64px width:                   */
+/*   y  0..27  header icon (48x28, centered)                           */
+/*   y 37      title "AmiTablet" (FontPrimary, centered)               */
+/*   y 45      version label (FontSecondary, centered, discreet)       */
+/*   y 46..56  BLE status badge (inverted rounded capsule)             */
+/*   y 57..110 6 control rows, 9px each (framed pictogram + label)     */
+/*   y 110     separator line                                         */
+/*   y112..127 footer frame with exit hint (two lines)                 */
+/* All coordinates below are in portrait space.                        */
 /* ------------------------------------------------------------------ */
 
 static void amitablet_draw_centered(Canvas* canvas, int32_t cx, int32_t y, const char* str) {
     uint16_t w = canvas_string_width(canvas, str);
     canvas_draw_str(canvas, cx - (int32_t)w / 2, y, str);
+}
+
+static void amitablet_draw_right_aligned(Canvas* canvas, int32_t x_right, int32_t y, const char* str) {
+    uint16_t w = canvas_string_width(canvas, str);
+    canvas_draw_str(canvas, x_right - (int32_t)w, y, str);
 }
 
 /* Pictograms below draw inside a 9x7 cell at (bx, by). */
@@ -79,6 +85,16 @@ static void amitablet_draw_picto_ok(Canvas* canvas, int32_t bx, int32_t by) {
     canvas_draw_dot(canvas, bx + 4, by + 3);
 }
 
+/* BACK return-arrow pictogram in a 9x7 cell at (bx, by).
+   A "BACK" text capsule (as in mockup 2) does not fit next to the
+   "Screenshot" label in 64px, so a return-arrow glyph is used. */
+static void amitablet_draw_picto_back(Canvas* canvas, int32_t bx, int32_t by) {
+    canvas_draw_line(canvas, bx + 6, by + 1, bx + 6, by + 4);
+    canvas_draw_line(canvas, bx + 6, by + 4, bx + 2, by + 4);
+    canvas_draw_line(canvas, bx + 2, by + 4, bx + 4, by + 2);
+    canvas_draw_line(canvas, bx + 2, by + 4, bx + 4, by + 5);
+}
+
 /* Mini Bluetooth rune, 5x7 at (x, y). */
 static void amitablet_draw_bt(Canvas* canvas, int32_t x, int32_t y) {
     canvas_draw_line(canvas, x + 2, y, x + 2, y + 6);
@@ -105,59 +121,66 @@ static void amitablet_draw_callback(Canvas* canvas, void* context) {
     canvas_draw_icon(canvas, 8, 0, &I_amitablet_logo);
 
     canvas_set_font(canvas, FontPrimary);
-    amitablet_draw_centered(canvas, 32, 38, "AmiTablet");
+    amitablet_draw_centered(canvas, 32, 37, "AmiTablet");
 
     canvas_set_font(canvas, FontSecondary);
-    amitablet_draw_centered(canvas, 32, 46, AMITABLET_VERSION_LABEL);
+    amitablet_draw_centered(canvas, 32, 45, AMITABLET_VERSION_LABEL);
 
-    /* BLE status badge: framed capsule with BT symbol, tick when linked. */
+    /* BLE status badge: inverted rounded capsule (mockup 2) with BT
+       symbol, status text, and a tick when linked. Text is measured so
+       nothing can overflow the 64px width. */
     const char* ble_text = app->connected ? "BLE: OK" : "BLE: WAIT";
     uint16_t ble_w = canvas_string_width(canvas, ble_text);
     /* Group: [bt 5px][gap 2][text][gap 2 + check 6px when connected]. */
     int32_t group_w = 7 + (int32_t)ble_w + (app->connected ? 8 : 0);
-    canvas_draw_rframe(canvas, 3, 48, 58, 12, 3);
-    if(group_w <= 54) {
-        int32_t gx = 3 + (58 - group_w) / 2;
-        amitablet_draw_bt(canvas, gx, 50);
-        canvas_draw_str(canvas, gx + 7, 57, ble_text);
+    bool ble_compact = (group_w <= 54);
+    int32_t gx = ble_compact ? (3 + (58 - group_w) / 2) : 3;
+    canvas_draw_rbox(canvas, 3, 46, 58, 11, 3);
+    canvas_invert_color(canvas);
+    if(ble_compact) {
+        amitablet_draw_bt(canvas, gx, 47);
+        canvas_draw_str(canvas, gx + 7, 54, ble_text);
         if(app->connected) {
-            amitablet_draw_check(canvas, gx + 7 + (int32_t)ble_w + 2, 50);
+            amitablet_draw_check(canvas, gx + 7 + (int32_t)ble_w + 2, 47);
         }
     } else {
         /* Fallback: centered text only, guaranteed to fit. */
-        amitablet_draw_centered(canvas, 32, 57, ble_text);
+        amitablet_draw_centered(canvas, 32, 54, ble_text);
     }
+    canvas_invert_color(canvas);
 
-    /* Main controls list: 5 rows, pictogram left + label right. */
-    static const AmiTabletPictoFn pictos[5] = {
+    /* Main controls list: 6 rows, framed pictogram left + label right. */
+    static const AmiTabletPictoFn pictos[6] = {
         amitablet_draw_picto_up,
         amitablet_draw_picto_down,
         amitablet_draw_picto_left,
         amitablet_draw_picto_right,
         amitablet_draw_picto_ok,
+        amitablet_draw_picto_back,
     };
-    static const char* const labels[5] = {
-        "Scroll",
-        "Scroll",
+    static const char* const labels[6] = {
+        "Scroll up",
+        "Scroll down",
         "Back",
         "Forward",
         "Right-click",
+        "Screenshot",
     };
-    for(int i = 0; i < 5; i++) {
-        int32_t ry = 61 + i * 9;
-        canvas_draw_rframe(canvas, 2, ry + 1, 9, 7, 1);
-        pictos[i](canvas, 2, ry + 1);
-        canvas_draw_str(canvas, 13, ry + 8, labels[i]);
+    for(int i = 0; i < 6; i++) {
+        int32_t ry = 57 + i * 9;
+        canvas_draw_rframe(canvas, 2, ry, 9, 7, 1);
+        pictos[i](canvas, 2, ry);
+        amitablet_draw_right_aligned(canvas, 62, ry + 7, labels[i]);
     }
 
     /* Footer: separator + framed exit hint (two lines to fit 64px). */
-    canvas_draw_line(canvas, 6, 108, 58, 108);
-    canvas_draw_rframe(canvas, 4, 110, 56, 17, 2);
-    amitablet_draw_centered(canvas, 32, 117, "Hold BACK");
-    amitablet_draw_centered(canvas, 32, 125, "to exit");
+    canvas_draw_line(canvas, 6, 110, 58, 110);
+    canvas_draw_rframe(canvas, 4, 112, 56, 16, 2);
+    amitablet_draw_centered(canvas, 32, 120, "Hold BACK");
+    amitablet_draw_centered(canvas, 32, 126, "to exit");
 
     /* V0.9 diagnostic state is intentionally not drawn over the final UI.
-       It is logged to the console to preserve the V0.8 design. */
+       It is logged to the console to preserve the V1.0 design. */
 }
 
 static void amitablet_input_callback(InputEvent* input_event, void* context) {
@@ -271,6 +294,16 @@ static void amitablet_consumer_release(AmiTabletApp* app, uint16_t key) {
     }
 }
 
+/* BACK short press: tap the HID keyboard Print Screen key so Windows
+   takes a normal full-screen screenshot. Press + release happen together
+   here, so no key can ever stick. */
+static void amitablet_screenshot(AmiTabletApp* app) {
+    if(app->ble_profile && app->connected) {
+        ble_profile_hid_kb_press(app->ble_profile, HID_KEYBOARD_PRINT_SCREEN);
+        ble_profile_hid_kb_release(app->ble_profile, HID_KEYBOARD_PRINT_SCREEN);
+    }
+}
+
 static const char* amitablet_input_key_name(InputKey key) {
     switch(key) {
     case InputKeyUp:
@@ -305,8 +338,13 @@ static void amitablet_handle_input(AmiTabletApp* app, const InputEvent* event) {
     amitablet_log_input(app, event);
 
     if(event->key == InputKeyBack) {
+        /* Short BACK fires on release and only for short presses: screenshot.
+           A long BACK produces Long (no Short), so it exits cleanly without
+           taking a screenshot. Nothing is sent on the initial press. */
         if(event->type == InputTypeLong) {
             app->running = false;
+        } else if(event->type == InputTypeShort) {
+            amitablet_screenshot(app);
         }
         return;
     }
